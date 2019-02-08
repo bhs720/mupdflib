@@ -6,7 +6,7 @@ extern int run_displaylist(fz_context* ctx, fz_display_list* list, fz_pixmap* pi
 
 int main(int argc, char **argv)
 {
-	const char* filename = "C:\\temp\\rgb.pdf";
+	const char* filename = "C:\\temp\\scan.pdf";
 
 	fz_context* ctx = fz_new_context(NULL, NULL, FZ_STORE_DEFAULT);
 	fz_register_document_handlers(ctx);
@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 
 	fz_pixmap* pix = fz_new_pixmap_with_data(ctx, fz_device_bgr(ctx), w, h, NULL, 1, stride, samples);
 		
-	run_displaylist(ctx, list, pix, 1, 0, 0, 0);
+	run_displaylist(ctx, list, pix, 1, 0, 20, 20);
 
 	fz_output* out = fz_new_output_with_path(ctx, "C:\\temp\\out.png", 0);
 	fz_write_pixmap_as_png(ctx, out, pix);
