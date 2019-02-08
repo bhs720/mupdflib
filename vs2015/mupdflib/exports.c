@@ -123,6 +123,11 @@ __declspec(dllexport) void get_pagesize(fz_context* ctx, fz_page* page, float* w
 	}
 }
 
+__declspec(dllexport) void drop_page(fz_context* ctx, fz_page* page)
+{
+	fz_drop_page(ctx, page);
+}
+
 __declspec(dllexport) fz_display_list* load_displaylist(fz_context* ctx, fz_page* page)
 {
 	fz_display_list* list = NULL;
@@ -144,7 +149,88 @@ __declspec(dllexport) fz_display_list* load_displaylist(fz_context* ctx, fz_page
 	return list;
 }
 
-__declspec(dllexport) void drop_page(fz_context* ctx, fz_page* page)
+__declspec(dllexport) int run_displaylist(fz_context* ctx, fz_display_list* list, fz_pixmap* pix, float scale, int rotation, int x0, int y0)
 {
-	fz_drop_page(ctx, page);
+	fz_matrix ctm;
+	fz_device* dev = NULL;
+	int rc = 0;
+	
+	fz_scale(&ctm, scale, scale);
+	fz_pre_rotate(&ctm, rotation);
+	
+	fz_rect tbounds;
+	fz_bound_display_list(ctx, list, &tbounds);
+	fz_transform_rect(&tbounds, &ctm);
+
+	fz_irect ibounds;
+	fz_round_rect(&ibounds, &tbounds);
+
+	pix->x = ibounds.x0 + x0;
+	pix->y = ibounds.y0 + y0;
+	
+	fz_var(dev);
+
+	fz_try(ctx)
+	{
+		fz_clear_pixmap_with_value(ctx, pix, 255);
+		dev = fz_new_draw_device(ctx, &ctm, pix);
+		fz_run_display_list(ctx, list, dev, &fz_identity, NULL, NULL);
+	}
+	fz_always(ctx)
+	{
+		if (dev != NULL)
+		{
+			fz_close_device(ctx, dev);
+			fz_drop_device(ctx, dev);
+		}
+	}
+	fz_catch(ctx)
+	{
+		rc = 1;
+	}
+
+	return rc;
+}
+
+__declspec(dllexport) void drop_displaylist(fz_context* ctx, fz_display_list* list)
+{
+	fz_drop_display_list(ctx, list);
+}
+
+__declspec(dllexport) fz_pixmap* new_pixmap_argb(fz_context* ctx, int width, int height)
+{
+	fz_pixmap* pix = NULL;
+
+	fz_var(pix);
+
+	fz_try(ctx)
+	{
+		pix = fz_new_pixmap(ctx, fz_device_bgr(ctx), width, height, NULL, 1);
+	}
+	fz_catch(ctx)
+	{
+		if (pix != NULL)
+		{
+			fz_drop_pixmap(ctx, pix);
+		}
+	}
+
+	return pix;
+}
+
+__declspec(dllexport) void drop_pixmap(fz_context* ctx, fz_pixmap* pix)
+{
+	fz_drop_pixmap(ctx, pix);
+}
+
+__declspec(dllexport) char* get_pixmap_data(fz_context* ctx, fz_pixmap* pix, int* width, int* height)
+{
+	if (pix == NULL)
+	{
+		return NULL;
+	}
+
+	*width = pix->w;
+	*height = pix->h;
+	return pix->samples;
 }
