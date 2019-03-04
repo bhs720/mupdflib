@@ -16,32 +16,24 @@ namespace mupdflibnet
         public int Height { get; private set; }
         public Bitmap Bmp { get; private set; }
 
-        public IntPtr NativePixmap { get; private set; }
-        public IntPtr NativePixmapData { get; private set; }
-        public IntPtr NativeContext { get; private set; }
+        public IntPtr PixPtr { get; private set; }
+        public IntPtr PixDataPtr { get; private set; }
+        public IntPtr CtxPtr { get; private set; }
 
-        public Pixmap(IntPtr nativeContext, int width, int height)
+        public Pixmap(IntPtr ctx, int width, int height)
         {
-            this.NativeContext = nativeContext;
-            this.Width = width;
-            this.Height = height;
-
-            NativePixmap = NativeMethods.new_pixmap_argb(NativeContext, Width, Height);
-            if (NativePixmap == IntPtr.Zero)
-                throw new NativeException("new_pixmap_argb() failed");
-
-            NativePixmapData = NativeMethods.get_pixmap_data(nativeContext, NativePixmap, out width, out height);
-            if (NativePixmapData == IntPtr.Zero)
-                throw new NativeException("get_pixmap_data() failed");
-
-            Bmp = new Bitmap(Width, Height, Width * 4, PixelFormat.Format32bppPArgb, NativePixmapData);
+            CtxPtr = ctx;
+            Width = width;
+            Height = height;
+            PixPtr = NativeMethods.NewPixmapARGB(CtxPtr, Width, Height);
+            PixDataPtr = NativeMethods.GetPixmapData(CtxPtr, PixPtr);
+            int stride = Width * 4;
+            Bmp = new Bitmap(Width, Height, stride, PixelFormat.Format32bppPArgb, PixDataPtr);
         }
 
         public Bitmap Render(Page page, float scale, int rotation, int x0, int y0)
         {
-            if (1 == NativeMethods.run_displaylist(NativeContext, page.ListPtr, NativePixmap, scale, rotation, x0, x0))
-                throw new NativeException("run_displaylist() failed");
-
+            NativeMethods.RunDisplayList(CtxPtr, page.ListPtr, PixPtr, scale, rotation, x0, y0);
             return Bmp;
         }
 
@@ -51,7 +43,7 @@ namespace mupdflibnet
             GC.SuppressFinalize(this);
         }
 
-        public void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
             if (disposed)
                 return;
@@ -64,12 +56,9 @@ namespace mupdflibnet
             }
 
             //Free unmanaged resources
-            if (NativePixmap != IntPtr.Zero)
-            {
-                NativeMethods.drop_pixmap(NativeContext, NativePixmap);
-                NativePixmap = IntPtr.Zero;
-                NativePixmapData = IntPtr.Zero;
-            }
+            NativeMethods.DropPixmap(CtxPtr, PixPtr);
+            PixPtr = IntPtr.Zero;
+            PixDataPtr = IntPtr.Zero;
 
             disposed = true;
         }
