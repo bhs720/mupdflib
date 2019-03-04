@@ -212,6 +212,7 @@ __declspec(dllexport) fz_pixmap* new_pixmap_argb(fz_context* ctx, int width, int
 		if (pix != NULL)
 		{
 			fz_drop_pixmap(ctx, pix);
+			pix = NULL;
 		}
 	}
 
