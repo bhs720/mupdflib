@@ -8,6 +8,7 @@ using System.Drawing.Imaging;
 using System.Security;
 using System.Security.Permissions;
 using mupdflibnet;
+using System.Runtime.InteropServices;
 
 namespace testapp
 {
@@ -15,10 +16,32 @@ namespace testapp
     {
         static void Main(string[] args)
         {
-            Main3();
+            Main4();
 
             Console.WriteLine("Program finished");
             Console.ReadKey();
+        }
+        
+        static void Main4()
+        {
+            IntPtr ctx = NativeMethods.NewContext();
+
+            IntPtr doc = NativeMethods.OpenDocument(ctx, @"C:\temp\plans.pdf");
+            IntPtr page = NativeMethods.LoadPage(ctx, doc, 8);
+            SizeF pageSize = NativeMethods.GetPageSize(ctx, page);
+            IntPtr list = NativeMethods.LoadDisplayList(ctx, page);
+
+            string text = NativeMethods.GetPagePlainText(ctx, list);
+            Console.WriteLine(text);
+            Console.WriteLine();
+
+            NativeMethods.WritePagePlainTextToFile(ctx, page, @"C:\temp\page.txt");
+
+            var rects = NativeMethods.SearchForText(ctx, list, "Addendum");
+
+            NativeMethods.DropDisplayList(ctx, list);
+            NativeMethods.DropPage(ctx, page);
+            NativeMethods.DropContext(ctx);
         }
 
         static void Main1()
@@ -30,7 +53,6 @@ namespace testapp
                 {
                     using (var page = doc.LoadPage(i))
                     {
-                        page.CacheDisplayList();
                         float scale = Math.Min(pix.Width / page.Width, pix.Height / page.Height);
                         Bitmap bmp = pix.Render(page, scale, 90, 0, 0);
                         string filename = string.Format(@"C:\temp\out\{0}.tif", i + 1);

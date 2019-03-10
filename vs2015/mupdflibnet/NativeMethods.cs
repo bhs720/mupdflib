@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
+using System.Drawing;
 
 namespace mupdflibnet
 {
@@ -23,7 +24,7 @@ namespace mupdflibnet
         [DllImport("mupdflib.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr new_context();
 
-        public void DropContext(IntPtr ctx)
+        public static void DropContext(IntPtr ctx)
         {
             if (ctx != IntPtr.Zero)
                 drop_context(ctx);
@@ -35,7 +36,7 @@ namespace mupdflibnet
         /// <param name="ctx">Pointer to context</param>
         [DllImport("mupdflib.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void drop_context(IntPtr ctx);
-        
+
         public static IntPtr OpenDocument(IntPtr ctx, string filename)
         {
             IntPtr doc = open_document(ctx, filename, System.IO.Path.GetExtension(filename));
@@ -53,7 +54,7 @@ namespace mupdflibnet
         /// <returns>Pointer to document. IntPtr.Zero on failure</returns>
         [DllImport("mupdflib.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr open_document(IntPtr ctx, [MarshalAs(UnmanagedType.LPWStr)]string filename, [MarshalAs(UnmanagedType.LPStr)]string mimetype);
-        
+
         public static void DropDocument(IntPtr ctx, IntPtr doc)
         {
             if (doc != IntPtr.Zero)
@@ -241,5 +242,80 @@ namespace mupdflibnet
         /// <returns></returns>
         [DllImport("mupdflib.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr get_pixmap_data(IntPtr ctx, IntPtr pix, out int width, out int height);
+
+        public static string GetPagePlainText(IntPtr ctx, IntPtr displayList)
+        {
+            IntPtr buff = IntPtr.Zero;
+            try
+            {
+                buff = load_plaintext_buffer(ctx, displayList);
+                if (buff == IntPtr.Zero)
+                    throw new NativeException("Failed to load text buffer");
+                IntPtr txtPtr = get_string_from_buffer(ctx, buff);
+                if (txtPtr == IntPtr.Zero)
+                    throw new NativeException("Failed to get string from buffer");
+                return Marshal.PtrToStringAnsi(txtPtr);
+            }
+            finally
+            {
+                if (buff != IntPtr.Zero)
+                    drop_buffer(ctx, buff);
+            }
+        }
+        [DllImport("mupdflib.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr load_plaintext_buffer(IntPtr ctx, IntPtr list);
+
+        [DllImport("mupdflib.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void drop_buffer(IntPtr ctx, IntPtr buff);
+
+        [DllImport("mupdflib.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr get_string_from_buffer(IntPtr ctx, IntPtr buff);
+
+        public static void WritePagePlainTextToFile(IntPtr ctx, IntPtr page, string filename)
+        {
+            if (write_page_plaintext_to_file(ctx, page, filename) != 0)
+                throw new NativeException("Failed to write plain text to file");
+        }
+
+        [DllImport("mupdflib.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int write_page_plaintext_to_file(IntPtr ctx, IntPtr page, string filename);
+
+        public static RectangleF[] SearchForText(IntPtr ctx, IntPtr list, string needle)
+        {
+            const int max_hits = 256;
+            IntPtr rectPtr = IntPtr.Zero;
+            try
+            {
+                int hit_count;
+                rectPtr = search_for_text(ctx, list, needle, max_hits, out hit_count);
+                if (rectPtr == IntPtr.Zero)
+                    throw new NativeException("Failed to search for text");
+
+                if (hit_count == 0)
+                    return null;
+
+                var sizeInBytes = Marshal.SizeOf(typeof(RectangleF));
+                var rects = new RectangleF[hit_count];
+                for (int i = 0; i < hit_count; i++)
+                {
+                    IntPtr p = new IntPtr(rectPtr.ToInt64() + i * sizeInBytes);
+                    rects[i] = Marshal.PtrToStructure<RectangleF>(p);
+                    // MuPDF returns a bbox, not a rect. Need to fix the width/height here.
+                    rects[i].Width -= rects[i].X;
+                    rects[i].Height -= rects[i].Y;
+                }
+
+                return rects;
+            }
+            finally
+            {
+                free_fz(ctx, rectPtr);
+            }
+        }
+        [DllImport("mupdflib.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr search_for_text(IntPtr ctx, IntPtr list, string needle, int hit_max, out int hit_count);
+
+        [DllImport("mupdflib.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int free_fz(IntPtr ctx, IntPtr p);
     }
 }

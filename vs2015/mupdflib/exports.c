@@ -142,7 +142,7 @@ __declspec(dllexport) fz_display_list* load_displaylist(fz_context* ctx, fz_page
 		{
 			fz_drop_display_list(ctx, list);
 		}
-		
+
 		list = NULL;
 	}
 
@@ -154,10 +154,10 @@ __declspec(dllexport) int run_displaylist(fz_context* ctx, fz_display_list* list
 	fz_matrix ctm;
 	fz_device* dev = NULL;
 	int rc = 0;
-	
+
 	fz_scale(&ctm, scale, scale);
 	fz_pre_rotate(&ctm, rotation);
-	
+
 	fz_rect tbounds;
 	fz_bound_display_list(ctx, list, &tbounds);
 	fz_transform_rect(&tbounds, &ctm);
@@ -167,7 +167,7 @@ __declspec(dllexport) int run_displaylist(fz_context* ctx, fz_display_list* list
 
 	pix->x = ibounds.x0 + x0;
 	pix->y = ibounds.y0 + y0;
-	
+
 	fz_var(dev);
 
 	fz_try(ctx)
@@ -234,4 +234,130 @@ __declspec(dllexport) char* get_pixmap_data(fz_context* ctx, fz_pixmap* pix, int
 	*width = pix->w;
 	*height = pix->h;
 	return pix->samples;
+}
+
+__declspec(dllexport) fz_buffer* load_plaintext_buffer(fz_context* ctx, fz_display_list* list)
+{
+	fz_stext_page* stext = NULL;
+	fz_buffer* buff = NULL;
+
+	fz_var(stext);
+	fz_var(buff);
+
+	fz_try(ctx)
+	{
+		stext = fz_new_stext_page_from_display_list(ctx, list, NULL);
+		buff = fz_new_buffer_from_stext_page(ctx, stext);
+	}
+	fz_always(ctx)
+	{
+		if (stext != NULL)
+		{
+			fz_drop_stext_page(ctx, stext);
+		}
+	}
+	fz_catch(ctx)
+	{
+		buff = NULL;
+	}
+
+	return buff;
+}
+
+__declspec(dllexport) void drop_buffer(fz_context* ctx, fz_buffer* buff)
+{
+	if (buff != NULL)
+	{
+		fz_drop_buffer(ctx, buff);
+	}
+}
+
+__declspec(dllexport) const char* get_string_from_buffer(fz_context* ctx, fz_buffer* buff)
+{
+	const char* string = NULL;
+
+	fz_try(ctx)
+	{
+		string = fz_string_from_buffer(ctx, buff);
+	}
+	fz_catch(ctx)
+	{
+		string = NULL;
+	}
+
+	return string;
+}
+
+__declspec(dllexport) int write_page_plaintext_to_file(fz_context* ctx, fz_page* page, const char* filename)
+{
+	fz_stext_page* stext = NULL;
+	fz_buffer* buff = NULL;
+	fz_output* out = NULL;
+	int rc = 0;
+
+	fz_var(stext);
+	fz_var(buff);
+	fz_var(out);
+
+	fz_try(ctx)
+	{
+		stext = fz_new_stext_page_from_page(ctx, page, NULL);
+		buff = fz_new_buffer_from_stext_page(ctx, stext);
+		out = fz_new_output_with_path(ctx, filename, 0);
+		fz_print_stext_page_as_text(ctx, out, stext);
+		fz_flush_output(ctx, out);
+		fz_close_output(ctx, out);
+	}
+	fz_always(ctx)
+	{
+		if (stext != NULL)
+		{
+			fz_drop_stext_page(ctx, stext);
+		}
+
+		if (buff != NULL)
+		{
+			fz_drop_buffer(ctx, buff);
+		}
+
+		if (out != NULL)
+		{
+			fz_drop_output(ctx, out);
+		}
+	}
+	fz_catch(ctx)
+	{
+		rc = 1;
+	}
+
+	return rc;
+}
+
+__declspec(dllexport) fz_rect* search_for_text(fz_context* ctx, fz_display_list* list, const char* needle, int hit_max, int* hit_count)
+{
+	fz_rect* hit_bbox = NULL;
+
+	fz_try(ctx)
+	{
+		hit_bbox = (fz_rect*)fz_malloc_array(ctx, hit_max, sizeof(fz_rect));
+		*hit_count = fz_search_display_list(ctx, list, needle, hit_bbox, hit_max);
+	}
+	fz_catch(ctx)
+	{
+		if (hit_bbox != NULL)
+		{
+			fz_free(ctx, hit_bbox);
+		}
+
+		hit_bbox = NULL;
+		*hit_count = 0;
+	}
+
+	return hit_bbox;
+}
+
+__declspec(dllexport) void free_fz(fz_context* ctx, void* p)
+{
+	if (p != NULL)
+		fz_free(ctx, p);
 }
