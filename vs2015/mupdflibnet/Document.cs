@@ -56,7 +56,7 @@ namespace mupdflibnet
 
             NativeMethods.DropDocument(CtxPtr, DocPtr);
             DocPtr = IntPtr.Zero;
-            NativeMethods.drop_context(CtxPtr);
+            NativeMethods.DropContext(CtxPtr);
             CtxPtr = IntPtr.Zero;
 
             disposed = true;

@@ -35,7 +35,7 @@ void extractText(char* filename, char* output)
 	fz_irect_from_rect(&bbox, &bounds);
 
 	fz_display_list* list = fz_new_display_list_from_page(ctx, page);
-	
+
 	fz_rect* hit_bbox = fz_malloc_array(ctx, sizeof(fz_rect), 256);
 	const char* needle = "accounts";
 	int hits = fz_search_display_list(ctx, list, needle, hit_bbox, 256);
@@ -45,13 +45,13 @@ void extractText(char* filename, char* output)
 
 	fz_stext_page* stext = fz_new_stext_page_from_display_list(ctx, list, NULL);
 
-	
+
 	fz_output* out = fz_new_output_with_path(ctx, output, 0);
 	//fz_print_stext_page_as_html(ctx, out, stext);
 	//fz_print_stext_page_as_xml(ctx, out, stext);
 	fz_buffer* buf = fz_new_buffer_from_stext_page(ctx, stext);
 	const char* str = fz_string_from_buffer(ctx, buf);
-	
+
 
 
 	fz_drop_buffer(ctx, buf);
@@ -76,7 +76,7 @@ void test2(char* filename, char* output)
 	fz_document* doc = fz_open_document(ctx, filename);
 	fz_page* page = fz_load_page(ctx, doc, 8);
 	fz_display_list* list = fz_new_display_list_from_page(ctx, page);
-	
+
 	fz_buffer* buff = load_plaintext_buffer(ctx, list);
 	char* string = get_string_from_buffer(ctx, buff);
 	fprintf(stdout, "%s\r\n", string);

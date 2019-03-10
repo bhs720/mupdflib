@@ -21,7 +21,7 @@ namespace testapp
             Console.WriteLine("Program finished");
             Console.ReadKey();
         }
-        
+
         static void Main4()
         {
             IntPtr ctx = NativeMethods.NewContext();
@@ -37,7 +37,7 @@ namespace testapp
 
             NativeMethods.WritePagePlainTextToFile(ctx, page, @"C:\temp\page.txt");
 
-            var rects = NativeMethods.SearchForText(ctx, list, "Addendum");
+            var rects = NativeMethods.SearchForText(ctx, list, "31.02");
 
             NativeMethods.DropDisplayList(ctx, list);
             NativeMethods.DropPage(ctx, page);
@@ -87,25 +87,24 @@ namespace testapp
         {
             IntPtr ctx = NativeMethods.NewContext();
 
-            IntPtr doc = NativeMethods.open_document(ctx, @"C:\temp\corrupt.pdf", ".pdf");
-            IntPtr page = NativeMethods.load_page(ctx, doc, 0);
-            float ptWidth, ptHeight;
-            NativeMethods.get_pagesize(ctx, page, out ptWidth, out ptHeight);
-            IntPtr list = NativeMethods.load_displaylist(ctx, page);
+            IntPtr doc = NativeMethods.OpenDocument(ctx, @"C:\temp\corrupt.pdf");
+            IntPtr page = NativeMethods.LoadPage(ctx, doc, 0);
+            var ptSize = NativeMethods.GetPageSize(ctx, page);
+            IntPtr list = NativeMethods.LoadDisplayList(ctx, page);
             int pxWidth = 850;
             int pxHeight = 1100;
-            IntPtr pix = NativeMethods.new_pixmap_argb(ctx, 850, 1100);
-            IntPtr scan0 = NativeMethods.get_pixmap_data(ctx, pix, out pxWidth, out pxHeight);
-            float scale = Math.Min(pxWidth / ptWidth, pxHeight / ptHeight);
-            int rc = NativeMethods.run_displaylist(ctx, list, pix, scale, 0, 0, 0);
+            IntPtr pix = NativeMethods.NewPixmapARGB(ctx, pxWidth, pxHeight);
+            IntPtr scan0 = NativeMethods.GetPixmapData(ctx, pix);
+            float scale = Math.Min(pxWidth / ptSize.Width, pxHeight / ptSize.Height);
+            NativeMethods.RunDisplayList(ctx, list, pix, scale, 0, 0, 0);
 
             Bitmap bmp = new Bitmap(pxWidth, pxHeight, pxWidth * 4, PixelFormat.Format32bppPArgb, scan0);
             bmp.Save(@"C:\temp\out\1.tif");
 
-            NativeMethods.drop_pixmap(ctx, pix);
-            NativeMethods.drop_displaylist(ctx, list);
-            NativeMethods.drop_page(ctx, page);
-            NativeMethods.drop_context(ctx);
+            NativeMethods.DropPixmap(ctx, pix);
+            NativeMethods.DropDisplayList(ctx, list);
+            NativeMethods.DropPage(ctx, page);
+            NativeMethods.DropContext(ctx);
         }
     }
 }
